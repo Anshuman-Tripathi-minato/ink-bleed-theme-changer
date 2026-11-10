@@ -1,0 +1,80 @@
+import gsap from 'gsap';
+import { mountPage } from './page/mount';
+import { startAutoMode } from './ui/autoMode';
+import { DemoPanel, loadSettings } from './ui/demoPanel';
+import { InkTransition, SPREAD } from './ui/inkTransition';
+import { applyTheme, getTheme } from './ui/theme';
+
+const app = document.querySelector<HTMLDivElement>('#app');
+if (!app) throw new Error('#app root missing');
+
+mountPage(app);
+
+const toggle = document.querySelector<HTMLButtonElement>('#theme-toggle');
+applyTheme(getTheme(), toggle);
+
+const canvas = document.createElement('canvas');
+canvas.className = 'ink-canvas';
+canvas.setAttribute('aria-hidden', 'true');
+canvas.setAttribute('data-html2canvas-ignore', '');
+document.body.append(canvas);
+
+const params = new URLSearchParams(location.search);
+const settings = loadSettings();
+
+// ?gl=0 forces the CSS fallback (what browsers without WebGL2 get).
+const ink = new InkTransition(canvas, toggle, { webgl: params.get('gl') !== '0' });
+
+let showMarker = settings.showMarker;
+const panel = new DemoPanel(ink, {
+  showMarker,
+  onMarkerChange: (show) => {
+    showMarker = show;
+  },
+});
+
+toggle?.addEventListener('click', (e) => {
+  // detail === 0 means a keyboard-activated click (Enter/Space): spread from the button.
+  ink.toggle(e.detail === 0 ? undefined : { x: e.clientX, y: e.clientY });
+  panel.refresh();
+});
+
+// Text-entry fields swallow shortcuts; sliders and checkboxes in the demo panel don't.
+const TEXT_ENTRY =
+  'input:not([type="range"]):not([type="checkbox"]):not([type="button"]), textarea, select, [contenteditable="true"]';
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  const target = e.target;
+  if (target instanceof Element && target.closest(TEXT_ENTRY)) return;
+
+  switch (e.key.toLowerCase()) {
+    case 't':
+      ink.toggle();
+      panel.refresh();
+      break;
+    case 'd':
+      panel.toggle();
+      break;
+    case 'r':
+      ink.replay();
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
+});
+
+if (params.get('auto') === '1') {
+  startAutoMode(ink, () => showMarker, () => panel.refresh());
+}
+
+// ?panel=1 opens the controls on load (phones have no "D" key).
+if (params.get('panel') === '1') {
+  panel.toggle();
+}
+
+if (import.meta.env.DEV) {
+  Object.assign(window, { __ink: ink, __gsap: gsap, __spread: SPREAD, __panel: panel });
+  void import('./dev/probe').then((m) => m.installProbe(ink));
+}

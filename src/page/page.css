@@ -1,0 +1,725 @@
+/*
+ * Ink Bleed — portfolio page
+ *
+ * html2canvas compatibility notes (the page is snapshotted in later phases):
+ *  - colors are hex / rgba only (no oklch, color-mix, relative colors)
+ *  - no backdrop-filter, no CSS filters, no mix-blend-mode
+ *  - no color transitions: the theme flip must be instant so captures are clean
+ */
+
+@import '@fontsource-variable/fraunces/opsz.css';
+@import '@fontsource-variable/fraunces/opsz-italic.css';
+@import '@fontsource-variable/inter/opsz.css';
+
+/* ---------- Tokens ---------- */
+
+:root {
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --container: 1180px;
+  --gutter: clamp(20px, 4vw, 48px);
+  --radius: 14px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f4ef;
+  --surface: #fdfbf7;
+  --text: #15141a;
+  --text-soft: #3b3940;
+  --muted: #77736b;
+  --line: rgba(21, 20, 26, 0.1);
+  --line-strong: rgba(21, 20, 26, 0.18);
+  --accent: #d4471f;
+  --accent-ink: #fdfbf7;
+  --focus: #d4471f;
+
+  --thumb-1: #e8e2d4;
+  --thumb-2: #ebe7df;
+  --thumb-3: #e3e1dc;
+  --thumb-ink: #15141a;
+  --thumb-wave: #1d1c22;
+  --thumb-soft: rgba(21, 20, 26, 0.14);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b0b0f;
+  --surface: #121218;
+  --text: #f2efe8;
+  --text-soft: #c9c5bd;
+  --muted: #8a8791;
+  --line: rgba(242, 239, 232, 0.09);
+  --line-strong: rgba(242, 239, 232, 0.18);
+  --accent: #ff6b3d;
+  --accent-ink: #0b0b0f;
+  --focus: #ff6b3d;
+
+  --thumb-1: #17161d;
+  --thumb-2: #15151b;
+  --thumb-3: #18171e;
+  --thumb-ink: #f2efe8;
+  --thumb-wave: #2c2b34;
+  --thumb-soft: rgba(242, 239, 232, 0.12);
+}
+
+/* ---------- Base ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+ul[role='list'] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.container {
+  width: 100%;
+  max-width: calc(var(--container) + var(--gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 14px;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* ---------- Nav ---------- */
+
+/* No z-index here: the header must not form a stacking context, so the toggle
+   can sit above the ink canvas while the rest of the nav sits below it. */
+.site-header {
+  position: relative;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 84px;
+}
+
+.wordmark {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+}
+
+.wordmark__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.nav__links {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.nav__links a {
+  position: relative;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 14.5px;
+  font-weight: 480;
+  transition: color 0.2s var(--ease-out);
+}
+
+.nav__links a:hover,
+.nav__links a[aria-current='page'] {
+  color: var(--text);
+}
+
+.nav__links a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ---------- Theme toggle ---------- */
+
+.theme-toggle {
+  position: relative;
+  z-index: 1001; /* above the ink canvas (1000); hidden in snapshots via data-ink-live */
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  /* No colour transitions: the ink hands the button its new colours (themeIcon.ts). */
+  transition: transform 0.25s var(--ease-out);
+  touch-action: manipulation; /* no double-tap zoom delay on phones */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.theme-toggle:hover {
+  transform: rotate(-12deg) scale(1.04);
+  border-color: var(--text);
+}
+
+.theme-toggle:active {
+  transform: scale(0.94);
+}
+
+.theme-toggle__icon {
+  overflow: visible;
+}
+
+.theme-toggle__body {
+  fill: currentColor;
+}
+
+.theme-toggle__rays {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+/* Icon state (sun / moon) is driven by GSAP in src/ui/themeIcon.ts. */
+
+/* ---------- Hero ---------- */
+
+.hero {
+  padding-top: clamp(40px, 7vh, 96px);
+  padding-bottom: clamp(56px, 9vh, 112px);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.status-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2f9e6a;
+  box-shadow: 0 0 0 4px rgba(47, 158, 106, 0.16);
+}
+
+.hero__title {
+  max-width: 13em;
+  font-family: var(--font-display);
+  font-size: clamp(44px, 7.4vw, 104px);
+  font-weight: 380;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  font-optical-sizing: auto;
+}
+
+.hero__title em {
+  font-style: italic;
+  padding-right: 0.06em;
+  font-weight: 340;
+  color: var(--accent);
+}
+
+.hero__bio {
+  max-width: 54ch;
+  margin-top: 32px;
+  color: var(--text-soft);
+  font-size: clamp(17px, 1.35vw, 19px);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  margin-top: 40px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 22px 0 24px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 560;
+  letter-spacing: -0.005em;
+  transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+}
+
+.button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.25s var(--ease-out);
+}
+
+.button--primary {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.45);
+}
+
+.button--primary:hover svg {
+  transform: translateX(3px);
+}
+
+.text-link {
+  color: var(--text);
+  font-weight: 500;
+  background-image: linear-gradient(var(--line-strong), var(--line-strong));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 1px;
+  padding-bottom: 2px;
+  transition: background-size 0.3s var(--ease-out);
+}
+
+.text-link:hover {
+  background-image: linear-gradient(var(--accent), var(--accent));
+}
+
+/* ---------- Work ---------- */
+
+.work {
+  padding-bottom: clamp(72px, 12vh, 140px);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.section-head__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 460;
+  letter-spacing: -0.015em;
+}
+
+.section-head__meta {
+  color: var(--muted);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 2vw, 28px);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  transition: transform 0.35s var(--ease-out), border-color 0.25s var(--ease-out);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--line-strong);
+}
+
+.card__thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+}
+
+.card__body {
+  padding: 20px 22px 24px;
+}
+
+.card__meta {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.card__title {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 460;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.card__desc {
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+/* Thumb 1 — Tidal: sun over layered waves */
+.card__thumb--tidal {
+  background: var(--thumb-1);
+}
+
+.tidal__sun {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  width: 34%;
+  aspect-ratio: 1;
+  margin-left: -17%;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tidal__wave {
+  position: absolute;
+  left: -10%;
+  width: 120%;
+  height: 60%;
+  border-radius: 50% 50% 0 0;
+  background: var(--thumb-ink);
+}
+
+.tidal__wave--1 {
+  top: 52%;
+  opacity: 0.12;
+}
+
+.tidal__wave--2 {
+  top: 62%;
+  left: -30%;
+  opacity: 0.22;
+}
+
+.tidal__wave--3 {
+  top: 74%;
+  left: 10%;
+  background: var(--thumb-wave);
+}
+
+/* Thumb 2 — Field Notes: big italic specimen */
+.card__thumb--field {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 22px 24px;
+  background: var(--thumb-2);
+}
+
+.field__glyph {
+  position: absolute;
+  top: 4%;
+  left: 20px;
+  font-family: var(--font-display);
+  font-size: clamp(96px, 11vw, 150px);
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--thumb-ink);
+}
+
+.field__rule {
+  display: block;
+  height: 1px;
+  margin-bottom: 10px;
+  background: var(--thumb-ink);
+  opacity: 0.5;
+}
+
+.field__caption {
+  color: var(--thumb-ink);
+  font-size: 11.5px;
+  font-weight: 560;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Thumb 3 — Halo: concentric rings */
+.card__thumb--halo {
+  background: var(--thumb-3);
+}
+
+.halo__ring,
+.halo__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.halo__ring {
+  border: 1px solid var(--thumb-soft);
+}
+
+.halo__ring--1 {
+  width: 82%;
+}
+
+.halo__ring--2 {
+  width: 60%;
+  border-color: var(--line-strong);
+}
+
+.halo__ring--3 {
+  width: 38%;
+  border: 6px solid var(--accent);
+}
+
+.halo__core {
+  width: 14%;
+  background: var(--thumb-ink);
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--line);
+}
+
+.footer {
+  padding-top: 48px;
+  padding-bottom: 40px;
+}
+
+.footer__cta {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2.6vw, 34px);
+  font-weight: 380;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.footer__cta .text-link {
+  font-style: italic;
+  font-weight: 380;
+}
+
+.footer__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+  margin-top: 40px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.footer__social {
+  display: flex;
+  gap: 22px;
+}
+
+.footer__social a {
+  transition: color 0.2s var(--ease-out);
+}
+
+.footer__social a:hover {
+  color: var(--text);
+}
+
+.footer__local {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cards li:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .cards li:last-child .card__thumb {
+    aspect-ratio: 16 / 7;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    height: 68px;
+    gap: 12px;
+  }
+
+  .nav__links {
+    gap: 0;
+  }
+
+  .nav__links a {
+    padding: 8px 7px;
+    font-size: 13.5px;
+  }
+
+  .nav__links a[aria-current='page']::after {
+    bottom: 0;
+  }
+
+  .wordmark {
+    font-size: 17px;
+  }
+
+  .theme-toggle {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+
+  .eyebrow {
+    font-size: 12.5px;
+  }
+
+  .hero__title br {
+    display: none;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .cards li:last-child .card__thumb {
+    aspect-ratio: 4 / 3;
+  }
+
+  .footer__row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 420px) {
+  .nav__links a[href="#journal"] {
+    display: none;
+  }
+}
+
+/* ---------- Ink overlay ---------- */
+
+.ink-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.ink-canvas.is-active {
+  visibility: visible;
+}
+
+/* ---------- CSS fallback transition ----------
+   Used without WebGL2, under prefers-reduced-motion, or before snapshots exist.
+   Only applied for the duration of a flip so it never leaks into snapshots. */
+
+html.theme-fade,
+html.theme-fade *,
+html.theme-fade *::before,
+html.theme-fade *::after {
+  transition:
+    background-color var(--theme-fade, 0.45s) ease,
+    border-color var(--theme-fade, 0.45s) ease,
+    color var(--theme-fade, 0.45s) ease,
+    fill var(--theme-fade, 0.45s) ease,
+    stroke var(--theme-fade, 0.45s) ease,
+    box-shadow var(--theme-fade, 0.45s) ease !important;
+}

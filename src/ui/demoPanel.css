@@ -1,0 +1,137 @@
+/* Filming controls: deliberately theme-independent so they never flip with the ink. */
+
+.demo-panel {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2000;
+  width: 272px;
+  padding: 14px 16px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(16, 16, 21, 0.94);
+  box-shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.6);
+  color: #ece9e2;
+  font: 500 12.5px/1.4 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.demo-panel[hidden] {
+  display: none;
+}
+
+.demo-panel__head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.demo-panel__mode {
+  color: #8a8791;
+  font-weight: 500;
+}
+
+.demo-panel__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  margin-bottom: 8px;
+}
+
+.demo-panel__label {
+  color: #c9c5bd;
+}
+
+.demo-panel__value {
+  color: #ff6b3d;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-panel__row input[type='range'] {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 2px 0 0;
+  accent-color: #ff6b3d;
+}
+
+.demo-panel__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  color: #c9c5bd;
+  cursor: pointer;
+}
+
+.demo-panel__check input {
+  accent-color: #ff6b3d;
+}
+
+.demo-panel__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.demo-panel__actions button {
+  flex: 1;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #ff6b3d;
+  color: #0b0b0f;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.demo-panel__actions button.is-quiet {
+  flex: 0 0 auto;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ece9e2;
+}
+
+.demo-panel__actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.demo-panel__keys {
+  margin: 10px 0 0;
+  color: #77737c;
+  font-size: 11.5px;
+}
+
+.demo-panel kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c9c5bd;
+  font: inherit;
+}
+
+/* Tap marker for hands-free (?auto=1) recordings. */
+.tap-marker {
+  position: fixed;
+  z-index: 1002;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+@media (max-width: 480px) {
+  .demo-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+  }
+}
